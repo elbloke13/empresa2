@@ -30,6 +30,17 @@ const DashboardPage = () => {
     getIncidencias();
   }, []);
 
+  const logout = async () => {
+  try {
+    await api.post("/api/auth/logout");
+    localStorage.removeItem("userId");
+    localStorage.removeItem("userName");
+    router.push("/login");
+  } catch (error) {
+    console.log("Error cerrando sesión", error);
+  }
+};
+
   const filteredIncidencias = useMemo(() => {
     const normalizedSearch = searchTerm.toLowerCase().trim();
 
@@ -68,7 +79,7 @@ const DashboardPage = () => {
   };
 
   return (
-    <AppLayout searchTerm={searchTerm} onSearchChange={setSearchTerm}>
+    <AppLayout searchTerm={searchTerm} onSearchChange={setSearchTerm} onLogout={logout}>
       <div className="pageIntro">
         <span className="pageEyebrow">Panel principal</span>
         <h1 className="pageTitle">Incidencias de seguridad</h1>

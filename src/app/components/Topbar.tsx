@@ -3,9 +3,10 @@
 type TopbarProps = {
   searchTerm?: string;
   onSearchChange?: (value: string) => void;
+  onLogout?: () => void;
 };
 
-const Topbar = ({ searchTerm = "", onSearchChange }: TopbarProps) => {
+const Topbar = ({ searchTerm = "", onSearchChange, onLogout }: TopbarProps) => {
   return (
     <header className="topbar">
       <input
@@ -18,7 +19,11 @@ const Topbar = ({ searchTerm = "", onSearchChange }: TopbarProps) => {
 
       <div className="topbarRight">
         <div className="topbarBell">3</div>
-        <div className="topbarProfile">MP</div>
+        <div className="topbarProfile">GV</div>
+
+        <button className="topbarLogout" onClick={onLogout}>
+          Cerrar sesión
+        </button>
       </div>
     </header>
   );
