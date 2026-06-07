@@ -1,66 +1,156 @@
-import Image from "next/image";
-import styles from "./page.module.css";
+"use client";
 
-export default function Home() {
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import api from "./api/api";
+import { Incidencia } from "@/app/types/incidencia";
+import AppLayout from "./components/AppLayout";
+import StatCard from "./components/StatCard";
+import StatusBadge from "./components/StatusBadge";
+
+const DashboardPage = () => {
+  const router = useRouter();
+
+  const [incidencias, setIncidencias] = useState<Incidencia[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+
+  useEffect(() => {
+    const getIncidencias = async () => {
+      try {
+        const res = await api.get("/api/incidencias");
+        setIncidencias(res.data);
+      } catch (error) {
+        console.log("Error cargando incidencias", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    getIncidencias();
+  }, []);
+
+  const filteredIncidencias = useMemo(() => {
+    const normalizedSearch = searchTerm.toLowerCase().trim();
+
+    if (!normalizedSearch) return incidencias;
+
+    return incidencias.filter((inc) => {
+      return (
+        inc.titulo.toLowerCase().includes(normalizedSearch) ||
+        inc.categoria.toLowerCase().includes(normalizedSearch) ||
+        inc.descripcion.toLowerCase().includes(normalizedSearch)
+      );
+    });
+  }, [incidencias, searchTerm]);
+
+  const totalIncidencias = incidencias.length;
+
+  const incidenciasCriticas = useMemo(() => {
+    return incidencias.filter((inc) => inc.severidad === "Crítica").length;
+  }, [incidencias]);
+
+  const porcentajeResueltas = useMemo(() => {
+    const resueltas = incidencias.filter((inc) => inc.estado === "Resuelta").length;
+
+    if (incidencias.length === 0) return 0;
+
+    return Math.round((resueltas / incidencias.length) * 100);
+  }, [incidencias]);
+
+  const goToNuevaIncidencia = () => {
+    router.push("/nueva-incidencia");
+  };
+
+  const goToDetalle = (id?: string) => {
+    if (!id) return;
+    router.push(`/incidencia/${id}`);
+  };
+
   return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <AppLayout searchTerm={searchTerm} onSearchChange={setSearchTerm}>
+      <div className="pageIntro">
+        <span className="pageEyebrow">Panel principal</span>
+        <h1 className="pageTitle">Incidencias de seguridad</h1>
+        <p className="pageSubtitle">
+          Supervisa el estado de las incidencias registradas y consulta su criticidad.
+        </p>
+      </div>
+
+      <section className="cardsContainer">
+        <StatCard
+          title="Críticas"
+          value={incidenciasCriticas}
+          description="Requieren atención inmediata"
+          icon="!"
         />
-        <div className={styles.intro}>
-          <h1>To get started, edit the page.tsx file.</h1>
-          <p>
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+
+        <StatCard
+          title="Total"
+          value={totalIncidencias}
+          description="Incidencias registradas"
+          icon="#"
+        />
+
+        <StatCard
+          title="Resueltas"
+          value={`${porcentajeResueltas}%`}
+          description="Porcentaje completado"
+          icon="%"
+        />
+      </section>
+
+      <section className="tableSection">
+        <div className="tableHeader">
+          <div>
+            <h2>Incidencias recientes</h2>
+            <p>Consulta y accede al detalle de cada incidencia</p>
+          </div>
+
+          <button className="primaryButton" onClick={goToNuevaIncidencia}>
+            + Nueva incidencia
+          </button>
         </div>
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className={styles.secondary}
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+
+        {loading ? (
+          <p>Cargando incidencias...</p>
+        ) : filteredIncidencias.length === 0 ? (
+          <p>No hay incidencias que coincidan con la búsqueda.</p>
+        ) : (
+          <table className="incidenciasTable">
+            <thead>
+              <tr>
+                <th>Título</th>
+                <th>Categoría</th>
+                <th>Estado</th>
+                <th>Criticidad</th>
+                <th>Fecha</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredIncidencias.map((incidencia) => (
+                <tr
+                  key={incidencia.id}
+                  onClick={() => goToDetalle(incidencia.id)}
+                  className="clickableRow"
+                >
+                  <td>{incidencia.titulo}</td>
+                  <td>{incidencia.categoria}</td>
+                  <td>
+                    <StatusBadge value={incidencia.estado} type="estado" />
+                  </td>
+                  <td>
+                    <StatusBadge value={incidencia.severidad} type="severidad" />
+                  </td>
+                  <td>{incidencia.fecha}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </section>
+    </AppLayout>
   );
-}
+};
+
+export default DashboardPage;
